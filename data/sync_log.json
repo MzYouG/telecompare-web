@@ -1,6 +1,11 @@
 [
   {
-    "summary": "Test initial secure sync",
-    "sources": 17
+    "timestamp": "2026-10-30T21:48:02.184523+00:00",
+    "summary": "Synced 17 sources | 290 products (357 offers)",
+    "sources_synced": 17,
+    "total_products": 290,
+    "total_offers": 357,
+    "price_changes": [],
+    "errors": []
   }
 ]

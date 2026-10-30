@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-30T21:25:18.980298+00:00",
+  "last_updated": "2026-10-30T21:48:02.167576+00:00",
   "bots": {
     "@DigiShopBot": {
       "name": "DigiShop",
@@ -4970,6 +4970,15 @@
             "USDT"
           ],
           "url": "https://t.me/Akunding_store_bot"
+        },
+        {
+          "bot": "@NexaStore1_bot",
+          "price": 9.9,
+          "warranty": "none",
+          "payment_methods": [
+            "USDT"
+          ],
+          "url": "https://t.me/NexaStore1_bot"
         }
       ]
     },
@@ -6140,6 +6149,24 @@
             "USDT"
           ],
           "url": "https://t.me/HMKSTORE_BOT"
+        }
+      ]
+    },
+    {
+      "id": "422308b393f57198ba8fbff9e8e67120",
+      "name": "Claude AI",
+      "category": "AI Tools",
+      "duration": "1mo",
+      "variant": "Standard",
+      "offers": [
+        {
+          "bot": "@NolaStoreAi_bot",
+          "price": 30.0,
+          "warranty": "none",
+          "payment_methods": [
+            "USDT"
+          ],
+          "url": "https://t.me/NolaStoreAi_bot"
         }
       ]
     }

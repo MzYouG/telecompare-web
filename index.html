@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>TeleCompare — Apple Monochrome Liquid Glass</title>
+    <meta name="description" content="Compare prices across Telegram seller bots with Apple Monochrome Liquid Glass aesthetic. Find the cheapest deals dynamically regrouped.">
+    
+    <!-- Mobile PWA & Theme Colors -->
+    <meta name="theme-color" content="#09090b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TeleCompare">
+
+    <!-- Fonts: Inter & JetBrains Mono (from ilsainterim) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <!-- Apple Monochrome Liquid Glass Stylesheet -->
+    <link rel="stylesheet" href="./styles.css?v=2.2">
+</head>
+<body>
+
+    <!-- Ambient Liquid Glass Fluid Background (ilsainterim) -->
+    <div class="ambient-canvas" aria-hidden="true">
+        <div class="liquid-orb orb-1"></div>
+        <div class="liquid-orb orb-2"></div>
+        <div class="liquid-orb orb-interactive" id="interactiveOrb"></div>
+    </div>
+
+    <!-- Full-Screen Private Login Gate (WebLACASA Security) -->
+    <div class="login-gate" id="loginGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+        <div class="login-card glass-panel">
+            <div class="login-brand">
+                <div class="brand-icon">
+                    <i class="fa-brands fa-telegram"></i>
+                </div>
+                <h2 class="login-title" id="gateTitle">TeleCompare</h2>
+                <span class="brand-badge">PRIVATE ACCESS GATEWAY</span>
+            </div>
+
+            <p class="login-desc">This comparator terminal is private. Please enter the master access passcode to unlock the WebUI.</p>
+
+            <!-- Lockout Alert Banner -->
+            <div class="lockout-alert hidden" id="gateLockoutAlert">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span id="gateLockoutText">Too many failed attempts. Suspended for 5 minutes.</span>
+            </div>
+
+            <form id="gateLoginForm" class="login-form">
+                <div class="form-group">
+                    <label for="gatePasswordInput">Master Security Passcode</label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="gatePasswordInput" class="glass-input" placeholder="Default passcode: admin" autocomplete="current-password" required autofocus>
+                        <button type="button" class="toggle-pw-btn" id="toggleGatePwBtn" aria-label="Show password">
+                            <i class="fa-solid fa-eye" id="toggleGatePwIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-row-checkbox">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="gateRememberMe" checked>
+                        <span class="checkmark"></span>
+                        <span>Remember session on this device</span>
+                    </label>
+                </div>
+
+                <div class="gate-attempts-text" id="gateAttemptsText"></div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="gateSubmitBtn">
+                    <i class="fa-solid fa-shield-halved"></i> Unlock Terminal
+                </button>
+            </form>
+
+            <div class="gate-footer">
+                <span class="mono-subtext"><i class="fa-solid fa-lock"></i> Protected WebUI &bull; Authorized Access Only</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Header -->
+    <header class="header glass-panel">
+        <div class="header-inner">
+            
+            <!-- Brand Section -->
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-brands fa-telegram"></i>
+                </div>
+                <div class="brand-text">
+                    <h1 class="brand-title">TeleCompare</h1>
+                    <span class="brand-badge">LIQUID MONOCHROME</span>
+                </div>
+            </div>
+
+            <!-- Global Search Box -->
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Search services (CapCut, Netflix, ChatGPT, Canva)..." autocomplete="off" spellcheck="false">
+                <button type="button" class="search-clear-btn hidden" id="clearSearchBtn" aria-label="Clear search">&times;</button>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="header-actions">
+                
+                <!-- Server Connection Node Selector (GitHub Pages vs Localhost:8080) -->
+                <button id="serverNodeBtn" class="action-pill-btn" title="Configure Local Backend or GitHub Pages Cloud Mode">
+                    <span class="node-indicator" id="nodeIndicatorDot"></span>
+                    <span id="nodeLabel">Local Node</span>
+                </button>
+
+                <!-- Sources & APIs Panel Button -->
+                <button id="openSourcesBtn" class="action-pill-btn" title="Manage Sources, Bot APIs & Telegram Scraping">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Sources</span>
+                    <span class="count-badge" id="sourcesCountBadge">3</span>
+                </button>
+
+                <!-- Live Sync Button -->
+                <button id="syncNowBtn" class="action-pill-btn sync-btn" title="Live Sync Data Sources">
+                    <i class="fa-solid fa-arrows-rotate" id="syncSpinIcon"></i>
+                    <span class="hide-mobile">Sync</span>
+                </button>
+
+                <!-- Lock Session Button -->
+                <button id="lockSessionBtn" class="action-pill-btn" title="Lock WebUI Terminal">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>Lock</span>
+                </button>
+
+                <!-- Monochrome Theme Toggle (Dark / Light) -->
+                <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Monochrome Dark / Light" aria-label="Toggle Theme">
+                    <i class="fa-solid fa-moon" id="themeIcon"></i>
+                </button>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+
+        <!-- Top Status Sub-Header -->
+        <div class="sub-header-bar">
+            <div class="live-status-pill">
+                <span class="live-dot"></span>
+                <span id="lastUpdated">Syncing catalog...</span>
+            </div>
+            <div class="active-endpoint-badge" id="activeEndpointBadge">
+                <i class="fa-solid fa-server"></i>
+                <span id="endpointText">http://localhost:8080</span>
+            </div>
+        </div>
+
+        <!-- Filters Section (Payment Methods & Cheapest Price ONLY) -->
+        <section class="glass-panel filters-panel" id="filtersPanel">
+            <div class="filters-grid">
+                
+                <!-- Payment Method Filter -->
+                <div class="filter-col filter-col-payment">
+                    <div class="panel-section-title">
+                        <i class="fa-solid fa-wallet"></i>
+                        <span>Payment Methods</span>
+                    </div>
+                    <div class="pills-scroll-container no-scrollbar" id="filter-payment">
+                        <!-- Populated dynamically: ALL, USDT, BaridiMob, CCP, Visa/Mastercard, PayPal... -->
+                    </div>
+                </div>
+
+                <!-- Price Sorting Filter (Cheapest First ONLY) -->
+                <div class="filter-col filter-col-pricing">
+                    <div class="panel-section-title">
+                        <i class="fa-solid fa-arrow-down-short-wide"></i>
+                        <span>Pricing Sort</span>
+                    </div>
+                    <div class="pills-container" id="filter-price-sort">
+                        <button type="button" class="pill active" data-sort="cheapest">
+                            <i class="fa-solid fa-bolt"></i> Cheapest First
+                        </button>
+                        <button type="button" class="pill" data-sort="expensive">
+                            <i class="fa-solid fa-arrow-up-wide-short"></i> Highest First
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Metrics & Tree Control Bar -->
+        <section class="stats-bar glass-panel">
+            <div class="stats-left">
+                <div class="stat-pill">
+                    <span class="stat-label">Services</span>
+                    <strong class="stat-val mono" id="stat-services">0</strong>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">Verified Plans</span>
+                    <strong class="stat-val mono" id="stat-products">0</strong>
+                </div>
+                <div class="stat-pill hide-small">
+                    <span class="stat-label">Avg Savings</span>
+                    <strong class="stat-val mono stat-savings" id="stat-savings">0%</strong>
+                </div>
+            </div>
+            <div class="stats-right">
+                <button type="button" class="tree-toggle-btn" id="toggleAllTreesBtn" title="Expand or Collapse All Service Offers">
+                    <i class="fa-solid fa-angles-down" id="toggleAllIcon"></i>
+                    <span id="toggleAllLabel">Expand All</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Product Clusters Tree Container -->
+        <section class="products-tree-container" id="productsGrid" aria-live="polite">
+            
+            <!-- Loading State Skeleton -->
+            <div class="state-panel glass-panel" id="loadingState">
+                <div class="mono-spinner"></div>
+                <h3 class="state-title">DYNAMIC FUZZY CLUSTERING</h3>
+                <p class="state-desc">Grouping services & identifying cheapest pricing across Telegram bot feeds…</p>
+            </div>
+
+            <!-- Empty State -->
+            <div class="state-panel glass-panel hidden" id="emptyState">
+                <i class="fa-regular fa-folder-open empty-icon"></i>
+                <h3 class="state-title">NO OFFERS MATCH CRITERIA</h3>
+                <p class="state-desc">Try clearing your search query or selecting a different payment method.</p>
+                <button type="button" class="btn btn-secondary" onclick="resetFilters()">Reset Filters</button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="mobile-bottom-nav glass-panel" aria-label="Mobile Navigation">
+        <button type="button" class="mobile-nav-item active" id="mobileNavDealsBtn">
+            <i class="fa-solid fa-tags"></i>
+            <span>Deals</span>
+        </button>
+        <button type="button" class="mobile-nav-item" id="mobileNavFilterBtn">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Filter</span>
+        </button>
+        <button type="button" class="mobile-nav-item" id="mobileNavSourcesBtn">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Sources</span>
+        </button>
+        <button type="button" class="mobile-nav-item" id="mobileNavLockBtn">
+            <i class="fa-solid fa-lock"></i>
+            <span>Lock</span>
+        </button>
+        <button type="button" class="mobile-nav-item" id="mobileNavThemeBtn">
+            <i class="fa-solid fa-moon"></i>
+            <span>Theme</span>
+        </button>
+    </nav>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <p class="mono-subtext">&copy; 2026 TeleCompare &bull; Apple Monochrome Liquid Glass</p>
+            <div class="footer-links">
+                <span class="mono-subtext"><i class="fa-solid fa-cloud-arrow-down"></i> Auto-Sync: 30m</span>
+                <a href="https://github.com/MzYouG/telegram-price-comparator" target="_blank" rel="noopener noreferrer" class="footer-gh-link">
+                    <i class="fa-brands fa-github"></i> GitHub
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================================================================= -->
+    <!-- MODAL 2: Server Node & GitHub Pages Deployment Mode Modal         -->
+    <!-- ================================================================= -->
+    <div class="modal-overlay hidden" id="serverNodeModal" role="dialog" aria-modal="true" aria-labelledby="serverModalTitle">
+        <div class="modal-dialog glass-panel">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <div class="modal-icon"><i class="fa-solid fa-network-wired"></i></div>
+                    <div>
+                        <h2 class="modal-title" id="serverModalTitle">BACKEND SERVER NODE</h2>
+                        <p class="modal-subtitle">Configure Local PC Runner or GitHub Pages Cloud Mode</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" id="closeServerNodeModalBtn" aria-label="Close modal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <p class="section-desc">
+                    When hosted on <strong>GitHub Pages (github.io)</strong>, the app loads bundled static feeds.
+                    When running on your PC, it connects to your silent local server (<code class="mono">http://localhost:8080</code>).
+                </p>
+
+                <div class="node-options-grid">
+                    <label class="node-option-card glass-panel" id="optionLocalCard">
+                        <input type="radio" name="serverMode" value="local" id="modeLocalRadio" checked>
+                        <div class="node-card-body">
+                            <div class="node-title-row">
+                                <strong>Local Silent Server</strong>
+                                <span class="badge-mini">Recommended for PC</span>
+                            </div>
+                            <p class="node-desc">Direct live sync via <code class="mono">./start.sh</code> on port 8080.</p>
+                            <input type="url" id="customLocalUrlInput" class="glass-input node-url-input" value="http://localhost:8080" placeholder="http://localhost:8080">
+                        </div>
+                    </label>
+
+                    <label class="node-option-card glass-panel" id="optionCloudCard">
+                        <input type="radio" name="serverMode" value="cloud" id="modeCloudRadio">
+                        <div class="node-card-body">
+                            <div class="node-title-row">
+                                <strong>GitHub Pages Static Cloud</strong>
+                                <span class="badge-mini">Standalone</span>
+                            </div>
+                            <p class="node-desc">Loads pre-synced static catalogs directly from repository storage without local backend.</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="server-test-box" id="serverTestBox">
+                    <span id="serverTestStatusText">Testing server status…</span>
+                </div>
+
+                <div class="modal-form-actions">
+                    <button type="button" class="btn btn-secondary" id="testServerBtn">
+                        <i class="fa-solid fa-bolt"></i> Test Connection
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveServerNodeBtn">
+                        <i class="fa-solid fa-check"></i> Apply & Reconnect
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL 3: Sources & Bot API Management Modal (Hydra Launcher Style)-->
+    <!-- ================================================================= -->
+    <div class="modal-overlay hidden" id="sourcesModal" role="dialog" aria-modal="true" aria-labelledby="sourcesModalTitle">
+        <div class="modal-dialog glass-panel">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <div class="modal-icon"><i class="fa-solid fa-cloud-arrow-down"></i></div>
+                    <div>
+                        <h2 class="modal-title" id="sourcesModalTitle">DATA SOURCES & APIS</h2>
+                        <p class="modal-subtitle">Connect live store APIs and Telegram scrapers (Hydra Launcher style)</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" id="closeSourcesBtn" aria-label="Close modal">&times;</button>
+            </div>
+
+            <!-- Modal Navigation Tabs -->
+            <div class="modal-tabs">
+                <button type="button" class="modal-tab active" data-tab="direct-api-tab">
+                    <i class="fa-solid fa-bolt-lightning"></i> Direct Bot APIs
+                    <span class="tab-count-badge" id="directApiCountBadge">1</span>
+                </button>
+                <button type="button" class="modal-tab" data-tab="telegram-tab">
+                    <i class="fa-brands fa-telegram"></i> Telegram Channels & Bots
+                    <span class="tab-status-dot" id="tgTabStatusDot"></span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                
+                <!-- TAB 1: Direct Bot APIs -->
+                <div class="tab-pane active" id="direct-api-tab">
+                    
+                    <!-- Add Source Card -->
+                    <div class="add-source-card glass-panel">
+                        <div class="card-section-title">
+                            <i class="fa-solid fa-plus-circle"></i> Add Bot / Store API Source
+                        </div>
+                        <p class="section-desc">Connect custom JSON endpoints or store APIs to pull live catalogs directly.</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="apiSourceName">Source Name</label>
+                                <input type="text" id="apiSourceName" placeholder="e.g. Nexa Store API" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="apiBotHandle">Telegram Bot Username <span class="optional-tag">(@Store_bot)</span></label>
+                                <input type="text" id="apiBotHandle" placeholder="@NexaStore_bot" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="apiSourceUrl">API Endpoint URL</label>
+                                <input type="url" id="apiSourceUrl" placeholder="https://api.example.com/api/v1/products" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="apiSourceKey">API Key / Bearer Token <span class="optional-tag">(Optional)</span></label>
+                                <input type="text" id="apiSourceKey" placeholder="sk_live_... or x-api-key" class="glass-input">
+                            </div>
+                        </div>
+
+                        <!-- Feedback Banner -->
+                        <div class="test-feedback hidden" id="apiTestFeedback"></div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="testApiBtn">
+                                <i class="fa-solid fa-vial-circle-check"></i> Test Connection
+                            </button>
+                            <button type="button" class="btn btn-primary" id="saveApiBtn">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Add Source
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Configured Sources List -->
+                    <div class="sources-list-section">
+                        <div class="list-section-header">
+                            <h3>Active API Sources</h3>
+                            <span class="count-pill" id="apiSourcesCount">1 active</span>
+                        </div>
+                        <div class="sources-cards-container" id="apiSourcesContainer">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- TAB 2: Telegram Account & Channels -->
+                <div class="tab-pane" id="telegram-tab">
+
+                    <!-- Telegram Account Connection Card -->
+                    <div class="tg-account-card glass-panel" id="tgAccountCard">
+                        <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.45;">
+                            <p style="margin-bottom:12px; color:var(--text-primary);">
+                                Connect your Telegram account to scrape seller bots and discover channels directly from your active chats.
+                            </p>
+                            
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;" id="tgApiCredentialsBox">
+                                <div class="form-group">
+                                    <label for="tgApiIdInput">Telegram API ID <a href="https://my.telegram.org" target="_blank" rel="noopener" style="font-size:11px; text-decoration:underline; color:var(--text-primary); margin-left:4px;">(my.telegram.org)</a></label>
+                                    <input type="text" id="tgApiIdInput" class="glass-input mono" placeholder="e.g. 21987654">
+                                </div>
+                                <div class="form-group">
+                                    <label for="tgApiHashInput">Telegram API Hash</label>
+                                    <input type="text" id="tgApiHashInput" class="glass-input mono" placeholder="e.g. a1b2c3d4e5f60718293a4b5c6d7e8f90">
+                                </div>
+                            </div>
+
+                            <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1; min-width:200px;">
+                                    <label for="tgPhoneInput">Telegram Phone Number (international)</label>
+                                    <input type="tel" id="tgPhoneInput" class="glass-input mono" placeholder="+33612345678">
+                                </div>
+                                <button type="button" class="btn btn-primary btn-sm" id="sendTgCodeBtn" onclick="sendTelegramAuthCode()" style="height:38px; margin-bottom:1px; white-space:nowrap;">
+                                    <i class="fa-solid fa-paper-plane"></i> Send Login Code
+                                </button>
+                            </div>
+                            <div id="tgAuthFeedback" style="margin-top:10px; font-size:0.75rem;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Track Channel / Bot Form -->
+                    <div class="add-source-card glass-panel" style="margin-top: 1.25rem;">
+                        <div class="card-section-title">
+                            <i class="fa-solid fa-bullhorn"></i> Track Telegram Channel or Bot
+                        </div>
+                        <p class="section-desc">Scrape product posts and live pricing from Telegram channels, groups, or seller bots.</p>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="tgSourceName">Display Name</label>
+                                <input type="text" id="tgSourceName" placeholder="e.g. Pandora Digital Deals" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="tgSourceHandle">Channel / Bot Username or Link</label>
+                                <input type="text" id="tgSourceHandle" placeholder="@ChannelName or https://t.me/..." class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="tgSourceType">Source Type</label>
+                                <select id="tgSourceType" class="glass-input">
+                                    <option value="telegram_channel">Telegram Channel / Group (Posts Scraper)</option>
+                                    <option value="telegram_bot">Telegram Seller Bot (/start & Dialogs)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="discoverChatsBtn">
+                                <i class="fa-solid fa-compass"></i> Discover from My Chats
+                            </button>
+                            <button type="button" class="btn btn-primary" id="saveTgSourceBtn">
+                                <i class="fa-solid fa-plus"></i> Track Channel / Bot
+                            </button>
+                        </div>
+
+                        <!-- Discovered Chats Dropdown/List -->
+                        <div class="discovered-chats-box hidden" id="discoveredChatsBox">
+                            <div class="discovered-header">
+                                <span>Discovered Channels & Bots in your Account</span>
+                                <button type="button" class="btn-xs" id="closeDiscoveredBtn">&times;</button>
+                            </div>
+                            <div class="discovered-list no-scrollbar" id="discoveredList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Configured Telegram Sources List -->
+                    <div class="sources-list-section">
+                        <div class="list-section-header">
+                            <h3>Tracked Telegram Sources</h3>
+                            <span class="count-pill" id="tgSourcesCount">2 tracked</span>
+                        </div>
+                        <div class="sources-cards-container" id="tgSourcesContainer">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <div class="footer-status-text" id="modalFooterStatus">
+                    <i class="fa-solid fa-shield-halved"></i> Data securely pulled and merged locally
+                </div>
+                <div class="footer-actions">
+                    <button type="button" class="btn btn-secondary" id="closeModalFooterBtn">Done</button>
+                    <button type="button" class="btn btn-primary" id="syncAllModalBtn">
+                        <i class="fa-solid fa-arrows-rotate"></i> Sync All Sources Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer" aria-live="assertive"></div>
+
+    <!-- Application Script -->
+    <script src="./app.js?v=2.2"></script>
+</body>
+</html>

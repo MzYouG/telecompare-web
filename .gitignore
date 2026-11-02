@@ -3,3 +3,6 @@ Thumbs.db
 *.log
 .~lock.*#
 *.tmp
+
+data/
+*.json

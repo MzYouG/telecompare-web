@@ -22,10 +22,11 @@ let hasInitializedDefaultExpand = false;
 // Pending action callback when waiting for admin login
 let pendingAdminAction = null;
 
-// Server Node State (Local PC runner vs GitHub Pages Cloud mode)
+// Server Node State (Connects directly to Private Backend API)
 const serverNodeState = {
-    mode: localStorage.getItem('telecompare_server_mode') || (window.location.hostname.endsWith('github.io') ? 'cloud' : 'local'),
-    localUrl: localStorage.getItem('telecompare_custom_url') || 'http://localhost:8080',
+    mode: 'api',
+    localUrl: localStorage.getItem('telecompare_custom_url') || '',
+    apiKey: localStorage.getItem('telecompare_api_key') || 'tc_sec_comparator_2026',
     isOnline: false
 };
 
@@ -164,36 +165,26 @@ function initServerNodeMode() {
 }
 
 function getApiEndpoint(path) {
-    if (serverNodeState.mode === 'cloud') {
-        // GitHub Pages static mode fallbacks
-        if (path === '/api/products') return './data/products.json';
-        if (path === '/api/sources') return './data/sources.json';
-        return null;
-    }
-    // Local / remote server endpoint
-    const base = serverNodeState.localUrl.replace(/\/+$/, '');
+    const base = (serverNodeState.localUrl || '').trim().replace(/\/+$/, '');
+    if (!base) return null;
     return `${base}${path}`;
 }
 
 async function checkServerHealth() {
-    if (serverNodeState.mode === 'cloud') {
-        serverNodeState.isOnline = true;
+    if (!serverNodeState.localUrl) {
+        serverNodeState.isOnline = false;
         updateServerNodeUI();
         return;
     }
 
     try {
-        const base = serverNodeState.localUrl.replace(/\/+$/, '');
-        const res = await fetch(`${base}/api/status`, {
+        const endpoint = getApiEndpoint('/api/status');
+        const res = await fetch(endpoint, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(2000)
+            headers: { 'Accept': 'application/json', ...getAdminAuthHeader() },
+            signal: AbortSignal.timeout(3000)
         });
-        if (res.ok) {
-            serverNodeState.isOnline = true;
-        } else {
-            serverNodeState.isOnline = false;
-        }
+        serverNodeState.isOnline = res.ok;
     } catch (_) {
         serverNodeState.isOnline = false;
     }
@@ -205,20 +196,18 @@ function updateServerNodeUI() {
     const label = document.getElementById('nodeLabel');
     const endpointText = document.getElementById('endpointText');
 
-    if (serverNodeState.mode === 'cloud') {
-        if (dot) dot.className = 'node-indicator is-cloud';
-        if (label) label.textContent = 'Cloud (github.io)';
-        if (endpointText) endpointText.textContent = 'GitHub Pages Static';
+    if (!serverNodeState.localUrl) {
+        if (dot) dot.className = 'node-indicator is-error';
+        if (label) label.textContent = 'API Non Configurée';
+        if (endpointText) endpointText.textContent = 'Cliquez pour configurer';
+    } else if (serverNodeState.isOnline) {
+        if (dot) dot.className = 'node-indicator';
+        if (label) label.textContent = 'API Connectée';
+        if (endpointText) endpointText.textContent = serverNodeState.localUrl;
     } else {
-        if (serverNodeState.isOnline) {
-            if (dot) dot.className = 'node-indicator';
-            if (label) label.textContent = 'Local Node';
-            if (endpointText) endpointText.textContent = serverNodeState.localUrl;
-        } else {
-            if (dot) dot.className = 'node-indicator is-error';
-            if (label) label.textContent = 'Node Offline';
-            if (endpointText) endpointText.textContent = `${serverNodeState.localUrl} (offline)`;
-        }
+        if (dot) dot.className = 'node-indicator is-error';
+        if (label) label.textContent = 'API Déconnectée';
+        if (endpointText) endpointText.textContent = `${serverNodeState.localUrl} (hors-ligne)`;
     }
 }
 
@@ -227,84 +216,83 @@ function openServerNodeModal() {
     if (!modal) return;
     modal.classList.remove('hidden');
 
-    const modeLocalRadio = document.getElementById('modeLocalRadio');
-    const modeCloudRadio = document.getElementById('modeCloudRadio');
     const customUrlInput = document.getElementById('customLocalUrlInput');
+    const customApiKeyInput = document.getElementById('customApiKeyInput');
 
-    if (serverNodeState.mode === 'cloud') {
-        if (modeCloudRadio) modeCloudRadio.checked = true;
-    } else {
-        if (modeLocalRadio) modeLocalRadio.checked = true;
-    }
     if (customUrlInput) customUrlInput.value = serverNodeState.localUrl;
+    if (customApiKeyInput) customApiKeyInput.value = serverNodeState.apiKey;
 
-    testConfiguredServerNode();
+    if (serverNodeState.localUrl) {
+        testConfiguredServerNode();
+    }
 }
 
 function closeServerNodeModal() {
     const modal = document.getElementById('serverNodeModal');
-    if (modal) modal.classList.add('hidden');
+    if (!modal) return;
+    modal.classList.add('hidden');
 }
 
 async function testConfiguredServerNode() {
     const testBox = document.getElementById('serverTestBox');
     const urlInput = document.getElementById('customLocalUrlInput');
-    const isLocalSelected = document.getElementById('modeLocalRadio')?.checked;
+    const keyInput = document.getElementById('customApiKeyInput');
 
     if (!testBox) return;
 
-    if (!isLocalSelected) {
-        testBox.innerHTML = '<span style="color: #60a5fa;"><i class="fa-solid fa-cloud"></i> GitHub Pages Cloud Mode: Loads bundled static feeds directly from repository.</span>';
+    const testUrl = (urlInput?.value || '').trim().replace(/\/+$/, '');
+    const testKey = (keyInput?.value || '').trim();
+
+    if (!testUrl) {
+        testBox.innerHTML = '<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Veuillez renseigner l\'URL de votre API.</span>';
         return;
     }
 
-    const testUrl = (urlInput?.value || 'http://localhost:8080').trim().replace(/\/+$/, '');
-    testBox.innerHTML = `<span style="color: var(--text-secondary);"><i class="fa-solid fa-circle-notch fa-spin"></i> Testing ${escapeHtml(testUrl)}/api/status…</span>`;
+    testBox.innerHTML = `<span style="color: var(--text-secondary);"><i class="fa-solid fa-circle-notch fa-spin"></i> Test de connexion vers ${escapeHtml(testUrl)}/api/status...</span>`;
 
     try {
+        const headers = { 'Accept': 'application/json' };
+        if (testKey) headers['X-API-Key'] = testKey;
+
         const res = await fetch(`${testUrl}/api/status`, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(3000)
+            headers: headers,
+            signal: AbortSignal.timeout(4000)
         });
         if (res.ok) {
             const data = await res.json();
-            testBox.innerHTML = `<span style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Connection successful! TeleCompare server is running (Sources: ${data.sources_count || 0}).</span>`;
+            testBox.innerHTML = `<span style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Connexion API réussie ! Sources actives: ${data.sources_count || 0}.</span>`;
         } else {
-            testBox.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Server returned HTTP ${res.status}.</span>`;
+            testBox.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Le serveur a répondu HTTP ${res.status}.</span>`;
         }
     } catch (e) {
-        testBox.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-xmark"></i> Cannot reach server. Run <code>./start.sh</code> on your PC to launch it silently.</span>`;
+        testBox.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-xmark"></i> Impossible de joindre l\'API. Vérifiez l\'adresse ou démarrez le serveur.</span>`;
     }
 }
 
 function saveServerNodeConfig() {
-    const isCloud = document.getElementById('modeCloudRadio')?.checked;
     const urlInput = document.getElementById('customLocalUrlInput');
+    const keyInput = document.getElementById('customApiKeyInput');
 
-    if (isCloud) {
-        serverNodeState.mode = 'cloud';
-        localStorage.setItem('telecompare_server_mode', 'cloud');
-        showToast('Switched to GitHub Pages Cloud Mode', 'info');
-    } else {
-        serverNodeState.mode = 'local';
-        const url = (urlInput?.value || 'http://localhost:8080').trim().replace(/\/+$/, '');
-        serverNodeState.localUrl = url;
-        localStorage.setItem('telecompare_server_mode', 'local');
-        localStorage.setItem('telecompare_custom_url', url);
-        showToast(`Connected to local node at ${url}`, 'success');
-    }
+    const url = (urlInput?.value || '').trim().replace(/\/+$/, '');
+    const key = (keyInput?.value || '').trim() || 'tc_sec_comparator_2026';
 
+    serverNodeState.localUrl = url;
+    serverNodeState.apiKey = key;
+
+    localStorage.setItem('telecompare_custom_url', url);
+    localStorage.setItem('telecompare_api_key', key);
+
+    showToast(`Configuration API enregistrée`, 'success');
     closeServerNodeModal();
     checkServerHealth();
     fetchData();
-    loadSources();
 }
 
 // ==============================================================================
-// ==============================================================================
 // 4. Private WebUI Terminal Gatekeeper (WebLACASA Security)
 // ==============================================================================
+
 function isTerminalAuthenticated() {
     const token = localStorage.getItem('lacasa_admin_token') || sessionStorage.getItem('lacasa_admin_token');
     const userStr = localStorage.getItem('lacasa_admin_user') || sessionStorage.getItem('lacasa_admin_user');
@@ -324,7 +312,11 @@ function isTerminalAuthenticated() {
 
 function getAdminAuthHeader() {
     const token = localStorage.getItem('lacasa_admin_token') || sessionStorage.getItem('lacasa_admin_token');
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const apiKey = localStorage.getItem('telecompare_api_key') || serverNodeState.apiKey || 'tc_sec_comparator_2026';
+    if (apiKey) headers['X-API-Key'] = apiKey;
+    return headers;
 }
 
 function isAdminAuthenticated() {
@@ -542,32 +534,47 @@ async function handleGateLoginSubmit(e) {
 // ==============================================================================
 async function fetchData() {
     const loadingState = document.getElementById('loadingState');
+    const endpoint = getApiEndpoint('/api/products');
+
+    if (!endpoint) {
+        if (loadingState) {
+            loadingState.classList.remove('hidden');
+            loadingState.innerHTML = `
+                <i class="fa-solid fa-cloud-arrow-down" style="font-size: 2.5rem; color: var(--accent);"></i>
+                <h3 class="state-title">CONNEXION API REQUISE</h3>
+                <p class="state-desc">Ce frontend public interroge directement votre serveur API privé pour garder vos données 100% confidentielles.<br>Aucune donnée brute n'est stockée sur GitHub.</p>
+                <button class="btn btn-primary" onclick="openServerNodeModal()" style="margin-top: 1rem;"><i class="fa-solid fa-gear"></i> Configurer l'URL de l'API</button>
+            `;
+        }
+        checkServerHealth();
+        return;
+    }
 
     try {
-        let response = null;
-        const endpoint = getApiEndpoint('/api/products');
+        const headers = {
+            'Accept': 'application/json',
+            ...getAdminAuthHeader()
+        };
 
-        if (endpoint) {
-            try {
-                response = await fetch(endpoint, {
-                    headers: { 'Accept': 'application/json' },
-                    signal: AbortSignal.timeout(4000)
-                });
-            } catch (_) {}
+        const response = await fetch(endpoint, {
+            headers: headers,
+            signal: AbortSignal.timeout(6000)
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            if (loadingState) {
+                loadingState.classList.remove('hidden');
+                loadingState.innerHTML = `
+                    <i class="fa-solid fa-shield-halved" style="font-size: 2.5rem; color: var(--danger);"></i>
+                    <h3 class="state-title">AUTHENTIFICATION REQUISE</h3>
+                    <p class="state-desc">Clé API ou mot de passe non autorisé par le serveur distant.</p>
+                    <button class="btn btn-primary" onclick="openServerNodeModal()" style="margin-top: 1rem;"><i class="fa-solid fa-key"></i> Vérifier la Clé API</button>
+                `;
+            }
+            return;
         }
 
-        // Graceful fallbacks for GitHub Pages and offline situations
-        if (!response || !response.ok) {
-            response = await fetch('./data/products.json');
-        }
-        if (!response || !response.ok) {
-            response = await fetch('data/products.json');
-        }
-        if (!response || !response.ok) {
-            response = await fetch('../data/sample_products.json');
-        }
-
-        if (!response || !response.ok) throw new Error('Could not load products data');
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
 
         const data = await response.json();
         bots = data.bots || {};

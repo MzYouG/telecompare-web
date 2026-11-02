@@ -293,33 +293,20 @@
 
             <div class="modal-body">
                 <p class="section-desc">
-                    When hosted on <strong>GitHub Pages (github.io)</strong>, the app loads bundled static feeds.
-                    When running on your PC, it connects to your silent local server (<code class="mono">http://localhost:8080</code>).
+                    Ce frontend public interroge directement votre API backend privée via une clé API sécurisée.
+                    Aucune donnée sensible (produits, sources, tokens) n'est stockée sur GitHub.
                 </p>
 
-                <div class="node-options-grid">
-                    <label class="node-option-card glass-panel" id="optionLocalCard">
-                        <input type="radio" name="serverMode" value="local" id="modeLocalRadio" checked>
-                        <div class="node-card-body">
-                            <div class="node-title-row">
-                                <strong>Local Silent Server</strong>
-                                <span class="badge-mini">Recommended for PC</span>
-                            </div>
-                            <p class="node-desc">Direct live sync via <code class="mono">./start.sh</code> on port 8080.</p>
-                            <input type="url" id="customLocalUrlInput" class="glass-input node-url-input" value="http://localhost:8080" placeholder="http://localhost:8080">
-                        </div>
-                    </label>
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <label for="customLocalUrlInput"><i class="fa-solid fa-link"></i> URL de l'API Backend (Cloud / Render / Serveur)</label>
+                    <input type="url" id="customLocalUrlInput" class="glass-input" value="" placeholder="ex: https://mon-backend.onrender.com ou http://localhost:8080" style="width: 100%; margin-top: 0.4rem;">
+                    <span class="mono-subtext" style="display:block; margin-top:0.35rem; color:var(--text-muted); font-size:0.75rem;">URL HTTPS de votre serveur distant 24/7 (ex: Render, Railway) ou URL locale.</span>
+                </div>
 
-                    <label class="node-option-card glass-panel" id="optionCloudCard">
-                        <input type="radio" name="serverMode" value="cloud" id="modeCloudRadio">
-                        <div class="node-card-body">
-                            <div class="node-title-row">
-                                <strong>GitHub Pages Static Cloud</strong>
-                                <span class="badge-mini">Standalone</span>
-                            </div>
-                            <p class="node-desc">Loads pre-synced static catalogs directly from repository storage without local backend.</p>
-                        </div>
-                    </label>
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <label for="customApiKeyInput"><i class="fa-solid fa-key"></i> Clé d'authentification API (X-API-Key)</label>
+                    <input type="password" id="customApiKeyInput" class="glass-input" value="" placeholder="tc_sec_comparator_2026" style="width: 100%; margin-top: 0.4rem;">
+                    <span class="mono-subtext" style="display:block; margin-top:0.35rem; color:var(--text-muted); font-size:0.75rem;">Clé secrète autorisée configurée sur le serveur backend.</span>
                 </div>
 
                 <div class="server-test-box" id="serverTestBox">

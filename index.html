@@ -52,8 +52,16 @@
             </div>
 
             <form id="gateLoginForm" class="login-form">
+                <div class="form-group" style="margin-bottom: 0.85rem;">
+                    <label for="gateUsernameInput">Identifiant / Username</label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="gateUsernameInput" class="glass-input" placeholder="admin" value="admin" autocomplete="username">
+                    </div>
+                </div>
+
                 <div class="form-group">
-                    <label for="gatePasswordInput">Master Security Passcode</label>
+                    <label for="gatePasswordInput">Mot de passe / Passcode</label>
                     <div class="input-with-icon">
                         <i class="fa-solid fa-key"></i>
                         <input type="password" id="gatePasswordInput" class="glass-input" placeholder="••••••••" autocomplete="current-password" required autofocus>
@@ -113,6 +121,20 @@
                 <button id="serverNodeBtn" class="action-pill-btn" title="Configure Local Backend or GitHub Pages Cloud Mode">
                     <span class="node-indicator" id="nodeIndicatorDot"></span>
                     <span id="nodeLabel">Local Node</span>
+                </button>
+
+                <!-- Current User Profile Pill -->
+                <div class="user-profile-badge hidden" id="userProfileBadge">
+                    <i class="fa-solid fa-circle-user" style="color: var(--accent);"></i>
+                    <span id="currentUserNameText">admin</span>
+                    <span class="role-badge role-admin" id="currentUserRoleBadge">ADMIN</span>
+                </div>
+
+                <!-- Admin User Management Button (Visible only to Admin) -->
+                <button id="adminUsersBtn" class="action-pill-btn hidden" title="Gérer les comptes utilisateurs (Admin Dashboard)">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>Comptes</span>
+                    <span class="count-badge" id="usersCountBadge">1</span>
                 </button>
 
                 <!-- Sources & APIs Panel Button -->
@@ -513,6 +535,94 @@
                     <button type="button" class="btn btn-primary" id="syncAllModalBtn">
                         <i class="fa-solid fa-arrows-rotate"></i> Sync All Sources Now
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL 4: User Accounts Management Modal (Admin Dashboard)         -->
+    <!-- ================================================================= -->
+    <div class="modal-overlay hidden" id="usersModal" role="dialog" aria-modal="true" aria-labelledby="usersModalTitle">
+        <div class="modal-dialog glass-panel" style="max-width: 680px;">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <div class="modal-icon"><i class="fa-solid fa-users-gear"></i></div>
+                    <div>
+                        <h2 class="modal-title" id="usersModalTitle">GESTION DES COMPTES</h2>
+                        <p class="modal-subtitle">Créer et gérer les accès utilisateurs au comparateur</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" id="closeUsersModalBtn" aria-label="Fermer">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Create Account Card -->
+                <div class="admin-user-create-card glass-panel" style="padding: 1.25rem; margin-bottom: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);">
+                    <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-user-plus" style="color: var(--accent);"></i>
+                        <span>Créer un nouveau compte utilisateur</span>
+                    </h3>
+                    <form id="createUserForm">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem;">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="newUsernameInput" style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.35rem;">Nom d'utilisateur</label>
+                                <div class="input-with-icon">
+                                    <i class="fa-solid fa-user"></i>
+                                    <input type="text" id="newUsernameInput" class="glass-input" placeholder="ex: client_vip" required autocomplete="off" style="width: 100%;">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label for="newUserPasswordInput" style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.35rem;">Mot de passe</label>
+                                <div class="input-with-icon">
+                                    <i class="fa-solid fa-key"></i>
+                                    <input type="password" id="newUserPasswordInput" class="glass-input" placeholder="••••••••" required style="width: 100%;">
+                                    <button type="button" class="toggle-pw-btn" id="toggleNewUserPwBtn" aria-label="Afficher le mot de passe">
+                                        <i class="fa-solid fa-eye" id="toggleNewUserPwIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                            <div class="form-group" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <label for="newUserRoleSelect" style="font-size: 0.8rem; font-weight: 500; white-space: nowrap;">Rôle :</label>
+                                <select id="newUserRoleSelect" class="glass-input" style="padding: 0.4rem 0.75rem; font-size: 0.85rem; cursor: pointer;">
+                                    <option value="user">Utilisateur (Comparateur uniquement)</option>
+                                    <option value="admin">Administrateur (Accès complet)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="createUserSubmitBtn" style="white-space: nowrap;">
+                                <i class="fa-solid fa-user-plus"></i> Créer le compte
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Existing Users List -->
+                <div class="existing-users-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <h3 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">
+                            Comptes existants (<span id="usersListCount">1</span>)
+                        </h3>
+                        <button type="button" class="btn-mini" id="refreshUsersListBtn" title="Actualiser la liste" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem;">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+                    <div class="users-table-container" id="usersTableContainer" style="max-height: 240px; overflow-y: auto;">
+                        <div style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                            <i class="fa-solid fa-circle-notch fa-spin"></i> Chargement des comptes...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 0.75rem 1.25rem;">
+                <div class="footer-status-text">
+                    <i class="fa-solid fa-shield-halved"></i> Mots de passe salés & chiffrés en SHA-256
+                </div>
+                <div class="footer-actions">
+                    <button type="button" class="btn btn-secondary" id="closeUsersModalFooterBtn">Fermer</button>
                 </div>
             </div>
         </div>

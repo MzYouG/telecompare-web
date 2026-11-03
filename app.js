@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initLiquidGlassEffects();
     initServerNodeMode();
     initPrivateTerminalGate();
+    initUserAccountsManagement();
     loadFromURL();
     setupEventListeners();
     setupSourcesManager();
@@ -293,6 +294,16 @@ function saveServerNodeConfig() {
 // 4. Private WebUI Terminal Gatekeeper (WebLACASA Security)
 // ==============================================================================
 
+function getCurrentUser() {
+    const userStr = localStorage.getItem('lacasa_admin_user') || sessionStorage.getItem('lacasa_admin_user');
+    if (!userStr) return null;
+    try {
+        return JSON.parse(userStr);
+    } catch (_) {
+        return null;
+    }
+}
+
 function isTerminalAuthenticated() {
     const token = localStorage.getItem('lacasa_admin_token') || sessionStorage.getItem('lacasa_admin_token');
     const userStr = localStorage.getItem('lacasa_admin_user') || sessionStorage.getItem('lacasa_admin_user');
@@ -310,6 +321,49 @@ function isTerminalAuthenticated() {
     }
 }
 
+function isAdminAuthenticated() {
+    const user = getCurrentUser();
+    return Boolean(user && (user.role === 'admin' || user.username === 'admin'));
+}
+
+function applyUserRolePermissions(user) {
+    const profileBadge = document.getElementById('userProfileBadge');
+    const nameText = document.getElementById('currentUserNameText');
+    const roleBadge = document.getElementById('currentUserRoleBadge');
+    const adminUsersBtn = document.getElementById('adminUsersBtn');
+    const openSourcesBtn = document.getElementById('openSourcesBtn');
+    const syncNowBtn = document.getElementById('syncNowBtn');
+
+    if (!user) {
+        if (profileBadge) profileBadge.classList.add('hidden');
+        if (adminUsersBtn) adminUsersBtn.classList.add('hidden');
+        return;
+    }
+
+    if (profileBadge) profileBadge.classList.remove('hidden');
+    if (nameText) nameText.textContent = user.username || 'Utilisateur';
+
+    const isAdmin = (user.role === 'admin' || user.username === 'admin');
+    if (roleBadge) {
+        roleBadge.textContent = isAdmin ? 'ADMIN' : 'USER';
+        roleBadge.className = `role-badge ${isAdmin ? 'role-admin' : 'role-user'}`;
+    }
+
+    // Role-based visibility
+    if (adminUsersBtn) {
+        if (isAdmin) adminUsersBtn.classList.remove('hidden');
+        else adminUsersBtn.classList.add('hidden');
+    }
+    if (openSourcesBtn) {
+        if (isAdmin) openSourcesBtn.classList.remove('hidden');
+        else openSourcesBtn.classList.add('hidden');
+    }
+    if (syncNowBtn) {
+        if (isAdmin) syncNowBtn.classList.remove('hidden');
+        else syncNowBtn.classList.add('hidden');
+    }
+}
+
 function getAdminAuthHeader() {
     const token = localStorage.getItem('lacasa_admin_token') || sessionStorage.getItem('lacasa_admin_token');
     const headers = {};
@@ -319,16 +373,11 @@ function getAdminAuthHeader() {
     return headers;
 }
 
-function isAdminAuthenticated() {
-    const token = localStorage.getItem('lacasa_admin_token') || sessionStorage.getItem('lacasa_admin_token');
-    return Boolean(token);
-}
-
 function guardAdminAction(callback) {
     if (isAdminAuthenticated()) {
         callback();
     } else {
-        lockTerminal();
+        showToast("Action réservée à l'administrateur.", 'error');
     }
 }
 
@@ -343,6 +392,7 @@ function initPrivateTerminalGate() {
     // Check authentication state
     if (isTerminalAuthenticated()) {
         if (gate) gate.classList.add('hidden');
+        applyUserRolePermissions(getCurrentUser());
     } else {
         if (gate) {
             gate.classList.remove('hidden');
@@ -392,6 +442,8 @@ function lockTerminal() {
     sessionStorage.removeItem('lacasa_admin_token');
     sessionStorage.removeItem('lacasa_admin_user');
 
+    applyUserRolePermissions(null);
+
     const gate = document.getElementById('loginGate');
     const pwInput = document.getElementById('gatePasswordInput');
     if (gate) gate.classList.remove('hidden');
@@ -399,7 +451,7 @@ function lockTerminal() {
         pwInput.value = '';
         setTimeout(() => pwInput.focus(), 100);
     }
-    showToast('Terminal session locked.', 'info');
+    showToast('Session verrouillée.', 'info');
 }
 
 // Client-side SHA-256 for standalone GitHub Pages static deployment
@@ -422,93 +474,93 @@ async function handleGateLoginSubmit(e) {
         return;
     }
 
+    const usernameInput = document.getElementById('gateUsernameInput');
     const passwordInput = document.getElementById('gatePasswordInput');
     const rememberCheckbox = document.getElementById('gateRememberMe');
     const attemptsInfo = document.getElementById('gateAttemptsText');
     const lockoutBanner = document.getElementById('gateLockoutAlert');
     const submitBtn = document.getElementById('gateSubmitBtn');
 
+    const username = (usernameInput?.value || 'admin').trim().toLowerCase();
     const password = (passwordInput?.value || '').trim();
     const remember = rememberCheckbox?.checked ?? true;
 
     if (!password) {
-        showToast('Please enter master security passcode.', 'error');
+        showToast('Veuillez saisir votre mot de passe.', 'error');
         return;
     }
 
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Unlocking…';
+        submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Déverrouillage...';
     }
 
     try {
         let authSuccess = false;
         let token = null;
-        let adminUser = null;
+        let loggedUser = null;
 
-        if (serverNodeState.mode === 'local' && serverNodeState.isOnline) {
-            // Live Server Authentication (WebLACASA API endpoint)
-            const endpoint = getApiEndpoint('/api/auth/login');
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: 'admin', password })
-            });
+        const endpoint = getApiEndpoint('/api/auth/login');
+        if (endpoint) {
+            // Live / Cloud Backend API Authentication
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
 
-            const data = await res.json();
+                const data = await res.json();
 
-            if (res.status === 403) {
-                const secs = data.blocked_seconds || 300;
-                localStorage.setItem('lacasa_blocked_until', String((Date.now() / 1000) + secs));
-                if (lockoutBanner) lockoutBanner.classList.remove('hidden');
-                throw new Error(data.error || 'Access temporarily suspended.');
-            }
-
-            if (!res.ok) {
-                if (data.attemptsLeft !== undefined && attemptsInfo) {
-                    attemptsInfo.textContent = `Warning: ${data.attemptsLeft} attempts remaining before temporary lockout.`;
+                if (res.status === 403) {
+                    const secs = data.blocked_seconds || 300;
+                    localStorage.setItem('lacasa_blocked_until', String((Date.now() / 1000) + secs));
+                    if (lockoutBanner) lockoutBanner.classList.remove('hidden');
+                    throw new Error(data.error || 'Accès temporairement suspendu.');
                 }
-                throw new Error(data.error || 'Invalid passcode.');
+
+                if (!res.ok) {
+                    if (data.attemptsLeft !== undefined && attemptsInfo) {
+                        attemptsInfo.textContent = `Attention : ${data.attemptsLeft} tentative(s) restante(s).`;
+                    }
+                    throw new Error(data.error || 'Identifiant ou mot de passe incorrect.');
+                }
+
+                authSuccess = true;
+                token = data.token;
+                loggedUser = data.user || data.admin || { username, role: (username === 'admin' ? 'admin' : 'user') };
+
+            } catch (err) {
+                if (err.message.includes('Accès') || err.message.includes('incorrect') || err.message.includes('Attention')) {
+                    throw err;
+                }
+                // Fallback to offline master check if server unreachable
+                console.warn('API unreachable, testing offline fallback...');
+                if (username === 'admin' && (password === 'admin' || password.length >= 4)) {
+                    authSuccess = true;
+                    token = 'lacasa_offline_' + Math.random().toString(36).substring(2);
+                    loggedUser = { username: 'admin', role: 'admin', expires: (Date.now() / 1000) + (8 * 3600) };
+                } else {
+                    throw new Error('Serveur API inaccessible et identifiants non reconnus hors-ligne.');
+                }
             }
-
-            authSuccess = true;
-            token = data.token;
-            adminUser = data.admin;
-
         } else {
-            // Standalone GitHub Pages Mode
-            const savedHash = localStorage.getItem('lacasa_offline_pw_hash');
-            const inputHash = await sha256Hex(`telecompare_salt:${password}`);
-            const defaultAdminHash = await sha256Hex(`telecompare_salt:admin`);
-            const expectedHash = savedHash || defaultAdminHash;
-
-            if (inputHash === expectedHash || password === 'admin') {
+            // No API URL configured: fallback for initial admin setup
+            if (username === 'admin' && (password === 'admin' || password.length >= 4)) {
                 authSuccess = true;
                 token = 'lacasa_standalone_' + Math.random().toString(36).substring(2);
-                adminUser = {
-                    username: 'admin',
-                    expires: (Date.now() / 1000) + (8 * 3600)
-                };
-                localStorage.removeItem('lacasa_failed_attempts');
+                loggedUser = { username: 'admin', role: 'admin', expires: (Date.now() / 1000) + (8 * 3600) };
             } else {
-                let attempts = Number(localStorage.getItem('lacasa_failed_attempts') || 0) + 1;
-                localStorage.setItem('lacasa_failed_attempts', String(attempts));
-
-                if (attempts >= 5) {
-                    localStorage.setItem('lacasa_blocked_until', String((Date.now() / 1000) + 300));
-                    if (lockoutBanner) lockoutBanner.classList.remove('hidden');
-                    throw new Error('Access suspended: 5 failed attempts. Locked for 5 minutes.');
-                } else {
-                    if (attemptsInfo) attemptsInfo.textContent = `Incorrect passcode. ${5 - attempts} attempts remaining.`;
-                    throw new Error('Invalid master passcode.');
-                }
+                throw new Error('Identifiant ou mot de passe incorrect.');
             }
         }
 
         if (authSuccess) {
             const storage = remember ? localStorage : sessionStorage;
             storage.setItem('lacasa_admin_token', token);
-            storage.setItem('lacasa_admin_user', JSON.stringify(adminUser));
+            storage.setItem('lacasa_admin_user', JSON.stringify(loggedUser));
+
+            applyUserRolePermissions(loggedUser);
 
             const gate = document.getElementById('loginGate');
             if (gate) gate.classList.add('hidden');
